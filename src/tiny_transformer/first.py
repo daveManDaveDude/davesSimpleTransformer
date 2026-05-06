@@ -24,7 +24,3 @@ def reverse_tokens(input_seq):
     if not is_valid(input_seq):
         raise ValueError("Invalid input sequence")
     return reverse(input_seq)    
-
-
-print(reverse_tokens(input_seq))
-print(reverse_tokens([0, 0, 1, 2, 3, 4, 2,5]))

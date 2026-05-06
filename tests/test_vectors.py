@@ -1,6 +1,6 @@
 import pytest
 
-from tiny_transformer.vector import add_vectors, dot_product, matrix_vector_multiply, transpose_matrix
+from tiny_transformer.vector import add_vectors, dot_product, matrix_multiply, matrix_vector_multiply, predict_from_logits, predict_sequence, soft_max_from_logits, transpose_matrix
 
 vector1 = [1, 2, 3]
 vector2 = [10, 20, 30]
@@ -100,4 +100,104 @@ def test_dot_product_different_shape():
 def test_transpose_matrix_wrong_input():
     with pytest.raises(ValueError, match="Matrix must be a non-empty list of lists"):
         transpose_matrix([])  
+
+def test_matrix_multiply():
+    result = matrix_multiply(
+                    [[1, 2], [3, 4]],
+                    [[10, 20], [30, 40]])
+    assert result == [[70, 100], [150, 220]]
+
+def test_matrix_multiply_non_square():
+    result = matrix_multiply([[1, 2, 3], [4, 5, 6]],
+                             [[10, 20], [30, 40], [50, 60]]
+                            )
+    assert result == [[220, 280], [490, 640]]
+
+def test_matrix_multiply_empty_matrix1():
+    with pytest.raises(ValueError, match="Matrices must be non-empty lists of lists"):
+        matrix_multiply([], [[10, 20], [30, 40], [50, 60]] )  
+
+def test_matrix_multiply_empty_matrix2():
+    with pytest.raises(ValueError, match="Matrices must be non-empty lists of lists"):
+        matrix_multiply([[10, 20], [30, 40], [50, 60]], [] )  
+
+def test_matrix_multiply_jagged_matrix1():
+    with pytest.raises(ValueError, match="All rows in the first matrix must have the same number of columns"):
+        matrix_multiply(
+                    [[1], [3, 4]],
+                    [[10, 20], [30, 40]])  
+        
+def test_matrix_multiply_jagged_matrix2():
+    with pytest.raises(ValueError, match="All rows in the second matrix must have the same number of columns"):
+        matrix_multiply(
+                    [[1, 2], [3, 4]],
+                    [[10, 20], [30]])  
+        
+def test_matrix_multiply_shape_mismatch():
+    with pytest.raises(ValueError, match="Number of columns in the first matrix must equal the number of rows in the second matrix"):
+        matrix_multiply(
+                    [[1, 2, 3], [3, 4, 5], [1,3, 4]],
+                    [[10, 20], [10, 20 ]])  
+
+def test_matrix_multiply_1_3_3_1():
+    result = matrix_multiply([[1, 2, 3]],
+                             [[10],[20],[30]])
+    assert result == [[140]]
+
+def test_predict_from_logits():
+    result = predict_from_logits([1.0, 5.0, 2.0])
+    assert result == 1
+
+    result = predict_from_logits([-2.0, -1.0, -5.0])
+    assert result == 1
+
+    result = predict_from_logits([0.1, 0.2, 0.9])
+    assert result == 2
+
+def test_predict_sequence():
+    result = predict_sequence([
+        [1.0, 5.0, 2.0],
+        [9.0, 1.0, 0.0],
+    ])
+    assert result == [1, 0]
+
+def test_predict_sequence_blank_matrix():
+    with pytest.raises(ValueError, match="Matrix must be a non-empty list of lists"):
+        predict_sequence([])  
+
+def test_predict_sequence_jagged_matrix():
+    with pytest.raises(ValueError, match="All rows in the matrix must have the same number of columns"):
+        predict_sequence([[1.0, 2.0], [3.0]]) 
+
+def test_soft_max_from_logits():
+    result = soft_max_from_logits([1.0, 2.0, 3.0])
+    assert result == pytest.approx([
+        0.09003057317038046,
+        0.24472847105479767,
+        0.6652409557748219,
+    ])
+    assert sum(result) == pytest.approx(1.0)
+        
+def test_logits_not_mutated_by_soft_max():
+    logits = [1.0, 2.0, 3.0]
+    original_logits = logits.copy()
+    soft_max_from_logits(logits)
+    assert logits == original_logits, "Logits should not be mutated by soft_max_from_logits"  
+
+def test_soft_max_result_equals_input_length():
+    result = soft_max_from_logits([1.0, 2.0, 3.0])
+    assert len(result) == 3, "Softmax result should have the same length as the input logits"     
+
+def test_soft_max_from_logits_all_probs_between_0_and_1():
+    result = soft_max_from_logits([1.0, 2.0, 3.0])
+    assert min(result) > 0.0, "All probabilities should be greater than 0"
+    assert max(result) < 1.0, "All probabilities should be less than 1"
+
+
+def test_soft_max_from_logits_largest_logit_has_largest_probability():  
+    logits = [1.0, 2.0, 3.0]
+    result = soft_max_from_logits(logits)
+    max_logit_index = logits.index(max(logits))
+    max_prob_index = result.index(max(result))
+    assert max_logit_index == max_prob_index, "The largest logit should correspond to the largest probability"
 
