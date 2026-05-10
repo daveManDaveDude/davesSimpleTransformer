@@ -108,7 +108,7 @@ def predict_sequence(matrix1: list[list[float]]) -> list[int]:
         predictions = predictions + [predict_from_logits(matrix1[i])]
     return predictions
 
-def soft_max_from_logits(logits: list[float]) -> list[float]:
+def softmax_from_logits(logits: list[float]) -> list[float]:
     if len(logits) == 0:
         raise ValueError("Logits must be a non-empty list of floats")
     total = 0
@@ -122,5 +122,34 @@ def soft_max_from_logits(logits: list[float]) -> list[float]:
         return_probabilities[i] = return_probabilities[i] / total
    
     return return_probabilities
+
+def embed_token(token_id: int, embedding_matrix: list[list[float]]) -> list[float]:
+    if not embedding_matrix or len(embedding_matrix) == 0:
+        raise ValueError("Embedding matrix must be a non-empty list of lists")
+    num_rows_embedding_matrix = len(embedding_matrix)
+    num_cols_embedding_matrix = len(embedding_matrix[0])
+    for i in range(num_rows_embedding_matrix):
+        if len(embedding_matrix[i]) != num_cols_embedding_matrix:
+            raise ValueError("All rows in the embedding matrix must have the same number of columns")
+    if token_id < 0 or token_id >= num_rows_embedding_matrix:
+        raise ValueError("Token ID must be a valid index in the embedding matrix")
+    return embedding_matrix[token_id].copy()
+
+def embed_sequence(token_ids: list[int], embedding_matrix: list[list[float]]) -> list[list[float]]:
+    if not token_ids or len(token_ids) == 0:
+        raise ValueError("Sequence must be a non-empty list of token IDs")  
+    if not embedding_matrix or len(embedding_matrix) == 0:
+        raise ValueError("Embedding matrix must be a non-empty list of lists")
+    num_rows_embedding_matrix = len(embedding_matrix)
+    num_cols_embedding_matrix = len(embedding_matrix[0])
+    for i in range(num_rows_embedding_matrix):
+        if len(embedding_matrix[i]) != num_cols_embedding_matrix:
+            raise ValueError("All rows in the embedding matrix must have the same number of columns")
+    embedded_sequence = []
+    for token_id in token_ids:
+        if token_id < 0 or token_id >= num_rows_embedding_matrix:
+            raise ValueError("Token ID must be a valid index in the embedding matrix")
+        embedded_sequence = embedded_sequence + [embedding_matrix[token_id]]
+    return embedded_sequence.copy()
 
 

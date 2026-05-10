@@ -1,0 +1,4 @@
+__pycache__
+src/tiny_transformer/__pycache__/first.cpython-313.pyc
+src/tiny_transformer/__pycache__/vector.cpython-313.pyc
+tests/__pycache__/test_vectors.cpython-313-pytest-9.0.3.pyc

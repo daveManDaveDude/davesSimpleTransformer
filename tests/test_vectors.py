@@ -1,6 +1,6 @@
 import pytest
 
-from tiny_transformer.vector import add_vectors, dot_product, matrix_multiply, matrix_vector_multiply, predict_from_logits, predict_sequence, soft_max_from_logits, transpose_matrix
+from tiny_transformer.vector import add_vectors, dot_product, embed_sequence, embed_token, matrix_multiply, matrix_vector_multiply, predict_from_logits, predict_sequence, softmax_from_logits, transpose_matrix
 
 vector1 = [1, 2, 3]
 vector2 = [10, 20, 30]
@@ -169,8 +169,8 @@ def test_predict_sequence_jagged_matrix():
     with pytest.raises(ValueError, match="All rows in the matrix must have the same number of columns"):
         predict_sequence([[1.0, 2.0], [3.0]]) 
 
-def test_soft_max_from_logits():
-    result = soft_max_from_logits([1.0, 2.0, 3.0])
+def test_softmax_from_logits():
+    result = softmax_from_logits([1.0, 2.0, 3.0])
     assert result == pytest.approx([
         0.09003057317038046,
         0.24472847105479767,
@@ -178,26 +178,111 @@ def test_soft_max_from_logits():
     ])
     assert sum(result) == pytest.approx(1.0)
         
-def test_logits_not_mutated_by_soft_max():
+def test_logits_not_mutated_by_softmax():
     logits = [1.0, 2.0, 3.0]
     original_logits = logits.copy()
-    soft_max_from_logits(logits)
-    assert logits == original_logits, "Logits should not be mutated by soft_max_from_logits"  
+    softmax_from_logits(logits)
+    assert logits == original_logits, "Logits should not be mutated by softmax_from_logits"  
 
-def test_soft_max_result_equals_input_length():
-    result = soft_max_from_logits([1.0, 2.0, 3.0])
+def test_softmax_result_equals_input_length():
+    result = softmax_from_logits([1.0, 2.0, 3.0])
     assert len(result) == 3, "Softmax result should have the same length as the input logits"     
 
-def test_soft_max_from_logits_all_probs_between_0_and_1():
-    result = soft_max_from_logits([1.0, 2.0, 3.0])
+def test_softmax_from_logits_all_probs_between_0_and_1():
+    result = softmax_from_logits([1.0, 2.0, 3.0])
     assert min(result) > 0.0, "All probabilities should be greater than 0"
     assert max(result) < 1.0, "All probabilities should be less than 1"
 
-
-def test_soft_max_from_logits_largest_logit_has_largest_probability():  
+def test_softmax_from_logits_largest_logit_has_largest_probability():  
     logits = [1.0, 2.0, 3.0]
-    result = soft_max_from_logits(logits)
+    result = softmax_from_logits(logits)
     max_logit_index = logits.index(max(logits))
     max_prob_index = result.index(max(result))
     assert max_logit_index == max_prob_index, "The largest logit should correspond to the largest probability"
+
+def test_embed_token():
+    table = [
+        [0.1, 0.2],
+        [0.3, 0.4],
+        [0.5, 0.6],
+    ]
+    result = embed_token(0, table)
+    assert result == [0.1, 0.2]
+    result = embed_token(2, table)
+    assert result == [0.5, 0.6]
+
+def test_test_embed_sequence():
+    table = [
+        [0.1, 0.2],
+        [0.3, 0.4],
+        [0.5, 0.6],
+    ]
+    token_ids = [2, 0, 1]
+    result = [embed_token(token_id, table) for token_id in token_ids]
+    assert result == [[0.5, 0.6], [0.1, 0.2], [0.3, 0.4]]
+
+def test_embed_token_invalid_token_id():
+    table = [
+        [0.1, 0.2],
+        [0.3, 0.4],
+        [0.5, 0.6],
+    ]
+    with pytest.raises(ValueError, match="Token ID must be a valid index in the embedding matrix"):
+        embed_token(-1, table)
+    with pytest.raises(ValueError, match="Token ID must be a valid index in the embedding matrix"):
+        embed_token(3, table)
+
+def test_embed_token_invalid_token_id():
+    table = [
+        [0.1, 0.2],
+        [0.3, 0.4],
+        [0.5, 0.6],
+    ]
+    with pytest.raises(ValueError, match="Token ID must be a valid index in the embedding matrix"):
+        embed_token(-1, table)
+    with pytest.raises(ValueError, match="Token ID must be a valid index in the embedding matrix"):
+        embed_token(3, table)
+    # with pytest.raises(ValueError, match="Token ID must be a valid index in the embedding matrix"):
+    #     embed_token(1.5, table)
+
+def test_embed_token_empty_table():
+    table = []
+    with pytest.raises(ValueError, match="Embedding matrix must be a non-empty list of lists"):
+        embed_token(0, table)
+
+def test_embed_token_jagged_table():
+    table = [
+        [0.1, 0.2],
+        [0.3, 0.4, 0.5],
+    ]
+    with pytest.raises(ValueError, match="All rows in the embedding matrix must have the same number of columns"):
+        embed_token(0, table)
+
+def test_embed_sequence_empty_sequence ():
+    seq = []
+    table = [
+        [0.1, 0.2],
+        [0.3, 0.4],
+        [0.5, 0.6],
+    ]
+    with pytest.raises(ValueError, match="Sequence must be a non-empty list of token IDs"):
+        embed_sequence(seq, table)
+
+def test_copy_retunred_test():
+    table = [
+        [0.1, 0.2],
+        [0.3, 0.4],
+        [0.5, 0.6],
+    ]
+    result = embed_token(1, table)
+    result[0] = 999
+    assert table[1][0] == 0.3, "Embedding matrix should not be mutated by embed_token"  
+    assert table[1][1] == 0.4, "Embedding matrix should not be mutated by embed_token"  
+
+
+
+
+
+
+
 
