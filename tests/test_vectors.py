@@ -1,6 +1,6 @@
 import pytest
 
-from tiny_transformer.vector import add_vectors, dot_product, embed_sequence, embed_token, matrix_multiply, matrix_vector_multiply, predict_from_logits, predict_sequence, softmax_from_logits, transpose_matrix
+from tiny_transformer.vector import add_positional_embeddings, add_vectors, dot_product, embed_sequence, embed_token, matrix_multiply, matrix_vector_multiply, predict_from_logits, predict_sequence, softmax_from_logits, transpose_matrix
 
 vector1 = [1, 2, 3]
 vector2 = [10, 20, 30]
@@ -211,14 +211,14 @@ def test_embed_token():
     result = embed_token(2, table)
     assert result == [0.5, 0.6]
 
-def test_test_embed_sequence():
+def test_embed_sequence():
     table = [
         [0.1, 0.2],
         [0.3, 0.4],
         [0.5, 0.6],
     ]
     token_ids = [2, 0, 1]
-    result = [embed_token(token_id, table) for token_id in token_ids]
+    result = embed_sequence(token_ids, table) 
     assert result == [[0.5, 0.6], [0.1, 0.2], [0.3, 0.4]]
 
 def test_embed_token_invalid_token_id():
@@ -231,19 +231,6 @@ def test_embed_token_invalid_token_id():
         embed_token(-1, table)
     with pytest.raises(ValueError, match="Token ID must be a valid index in the embedding matrix"):
         embed_token(3, table)
-
-def test_embed_token_invalid_token_id():
-    table = [
-        [0.1, 0.2],
-        [0.3, 0.4],
-        [0.5, 0.6],
-    ]
-    with pytest.raises(ValueError, match="Token ID must be a valid index in the embedding matrix"):
-        embed_token(-1, table)
-    with pytest.raises(ValueError, match="Token ID must be a valid index in the embedding matrix"):
-        embed_token(3, table)
-    # with pytest.raises(ValueError, match="Token ID must be a valid index in the embedding matrix"):
-    #     embed_token(1.5, table)
 
 def test_embed_token_empty_table():
     table = []
@@ -268,7 +255,7 @@ def test_embed_sequence_empty_sequence ():
     with pytest.raises(ValueError, match="Sequence must be a non-empty list of token IDs"):
         embed_sequence(seq, table)
 
-def test_copy_retunred_test():
+def test_embed_token_returns_copy():
     table = [
         [0.1, 0.2],
         [0.3, 0.4],
@@ -278,6 +265,86 @@ def test_copy_retunred_test():
     result[0] = 999
     assert table[1][0] == 0.3, "Embedding matrix should not be mutated by embed_token"  
     assert table[1][1] == 0.4, "Embedding matrix should not be mutated by embed_token"  
+
+def test_embed_sequence_non_int_token_id():
+    table = [
+        [0.1, 0.2, 0.4],
+        [0.3, 0.4, 0.5],
+    ]
+    with pytest.raises(ValueError, match="Token ID must be an integer"):
+        embed_sequence([0.1], table)
+
+def test_embed_sequence_negative_token_id():
+    table = [
+        [0.1, 0.2, 0.4],
+        [0.3, 0.4, 0.5],
+    ]
+    with pytest.raises(ValueError, match="Token ID must be a valid index in the embedding matrix"):
+        embed_sequence([-1], table)
+
+def test_embed_sequence_invalid_token_id():
+    table = [
+        [0.1, 0.2, 0.4],
+        [0.3, 0.4, 0.5],
+    ]
+    with pytest.raises(ValueError, match="Token ID must be a valid index in the embedding matrix"):
+        embed_sequence([3], table)
+
+def test_embed_sequence_returns_copied_rows():
+    table = [
+        [0.1, 0.2, 0.4],
+        [0.3, 0.4, 0.5],
+    ]
+    result = embed_sequence([1], table)
+    result[0][0] = 999
+    assert table[1][0] == 0.3
+
+def test_embed_sequence_empty_matrix():
+    table = []
+    with pytest.raises(ValueError, match="Embedding matrix must not be empty"):
+        embed_sequence([0], [])
+
+def test_add_positional_embeddings():
+    embedded_sequence = [[0.5, 0.6], [0.1, 0.2]]
+    position_embedding_table = [[10.0, 10.0], [20.0, 20.0]]
+    result = add_positional_embeddings(embedded_sequence, position_embedding_table)
+    assert result == [[10.5, 10.6], [20.1, 20.2]]
+
+def test_add_positional_jagged_embedded_sequence():
+    embedded_sequence = [[0.5, 0.6], [0.1]]    
+    position_embedding_table = [[10.0, 10.0], [20.0, 20.0]]
+    with pytest.raises(ValueError, match="All rows in the embedded sequence must have the same number of columns"):
+        add_positional_embeddings(embedded_sequence, position_embedding_table)
+
+def test_add_positional_jagged_position_table():
+    embedded_sequence = [[0.5, 0.6], [0.1, 0.2]]
+    position_embedding_table = [[10.0, 10.0], [20.0]]
+    with pytest.raises(ValueError, match="All rows in the position embedding table must have the same number of columns"):
+        add_positional_embeddings(embedded_sequence, position_embedding_table)
+
+def test_add_positional_row_count_mismatch():
+    embedded_sequence = [[0.5, 0.6]]    
+    position_embedding_table = [[10.0, 10.0], [20.0, 20.0]]
+    with pytest.raises(ValueError, match="Embedded sequence and position embedding table must have the same number of rows"):
+        add_positional_embeddings(embedded_sequence, position_embedding_table)
+
+def test_add_positional_empty_embedding():
+    embedded_sequence = []    
+    position_embedding_table = [[10.0, 10.0]]
+    with pytest.raises(ValueError, match="Embedded sequence must be a non-empty list of lists"):
+        add_positional_embeddings(embedded_sequence, position_embedding_table)
+
+def test_add_positional_empty_position_table():
+    embedded_sequence = [[0.5, 0.6]]
+    position_embedding_table = []
+    with pytest.raises(ValueError, match="Position embedding table must be a non-empty list of lists"):
+        add_positional_embeddings(embedded_sequence, position_embedding_table)
+
+def test_add_positional_rectangular_column_mismatch():
+    embedded_sequence = [[0.5, 0.6, 0.7]]
+    position_embedding_table = [[10.0, 10.0]]
+    with pytest.raises(ValueError, match="Number of columns in the embedded sequence must equal the number of columns in the position embedding table"):
+        add_positional_embeddings(embedded_sequence, position_embedding_table)
 
 
 
