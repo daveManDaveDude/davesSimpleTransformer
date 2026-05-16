@@ -212,3 +212,62 @@ def add_positional_embeddings(embedded_sequence: list[list[float]], position_emb
         return_sequence = return_sequence + [add_token_and_position(token_embedding, position_embedding)]
     
     return return_sequence.copy()
+
+def linear_vector(vector1: list[float], weight_matrix: list[list[float]], bias_vector: list[float]) -> list[float]:
+    if not vector1 or len(vector1) == 0:
+        raise ValueError("Input vector must be a non-empty list of floats")
+    if not weight_matrix or len(weight_matrix) == 0:
+        raise ValueError("Weight matrix must be a non-empty list of lists")
+    if not bias_vector or len(bias_vector) == 0:
+        raise ValueError("Bias vector must be a non-empty list of floats")
+    
+    num_rows_weight_matrix = len(weight_matrix)
+    num_cols_weight_matrix = len(weight_matrix[0])
+    
+    for i in range(num_rows_weight_matrix):
+        if len(weight_matrix[i]) != num_cols_weight_matrix:
+            raise ValueError("All rows in the weight matrix must have the same number of columns")
+    
+    if num_cols_weight_matrix != len(vector1):
+        raise ValueError("Number of columns in the weight matrix must equal the length of the input vector")
+    
+    if num_rows_weight_matrix != len(bias_vector):
+        raise ValueError("Number of rows in the weight matrix must equal the length of the bias vector")
+    
+    linear_output = matrix_vector_multiply(weight_matrix, vector1)
+    return add_vectors(linear_output, bias_vector)
+
+def linear_sequence(embedded_sequence: list[list[float]], weight_matrix: list[list[float]], bias_vector: list[float]) -> list[list[float]]:
+    if not embedded_sequence or len(embedded_sequence) == 0:
+        raise ValueError("Embedded sequence must be a non-empty list of lists")
+    if not weight_matrix or len(weight_matrix) == 0:
+        raise ValueError("Weight matrix must be a non-empty list of lists")
+    if not bias_vector or len(bias_vector) == 0:
+        raise ValueError("Bias vector must be a non-empty list of floats")
+    
+    num_rows_embedded_sequence = len(embedded_sequence)
+    num_cols_embedded_sequence = len(embedded_sequence[0])
+    
+    for i in range(num_rows_embedded_sequence):
+        if len(embedded_sequence[i]) != num_cols_embedded_sequence:
+            raise ValueError("All rows in the embedded sequence must have the same number of columns")
+    
+    num_rows_weight_matrix = len(weight_matrix)
+    num_cols_weight_matrix = len(weight_matrix[0])
+    
+    for i in range(num_rows_weight_matrix):
+        if len(weight_matrix[i]) != num_cols_weight_matrix:
+            raise ValueError("All rows in the weight matrix must have the same number of columns")
+    
+    if num_cols_weight_matrix != num_cols_embedded_sequence:
+        raise ValueError("Number of columns in the weight matrix must equal the number of columns in the embedded sequence")
+    
+    if num_rows_weight_matrix != len(bias_vector):
+        raise ValueError("Number of rows in the weight matrix must equal the length of the bias vector")
+    
+    return_sequence = []
+    for i in range(num_rows_embedded_sequence):
+        linear_output = linear_vector(embedded_sequence[i], weight_matrix, bias_vector)
+        return_sequence = return_sequence + [linear_output]
+    
+    return return_sequence.copy()

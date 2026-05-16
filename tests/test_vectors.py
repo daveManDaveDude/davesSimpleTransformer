@@ -1,6 +1,6 @@
 import pytest
 
-from tiny_transformer.vector import add_positional_embeddings, add_vectors, dot_product, embed_sequence, embed_token, matrix_multiply, matrix_vector_multiply, predict_from_logits, predict_sequence, softmax_from_logits, transpose_matrix
+from tiny_transformer.vector import add_positional_embeddings, add_vectors, dot_product, embed_sequence, embed_token, linear_sequence, linear_vector, matrix_multiply, matrix_vector_multiply, predict_from_logits, predict_sequence, softmax_from_logits, transpose_matrix
 
 vector1 = [1, 2, 3]
 vector2 = [10, 20, 30]
@@ -346,6 +346,259 @@ def test_add_positional_rectangular_column_mismatch():
     with pytest.raises(ValueError, match="Number of columns in the embedded sequence must equal the number of columns in the position embedding table"):
         add_positional_embeddings(embedded_sequence, position_embedding_table)
 
+
+def test_linear_vector():
+    result = linear_vector(
+        [2, 3],
+        [
+            [10, 20],
+            [30, 40],
+            [50, 60],
+        ],
+        [1, 2, 3],
+    )
+    assert result == [81, 182, 283]
+
+def test_linear_vector_no_bias():
+    result = linear_vector(
+        [2, 3],
+        [[10, 20]],
+        [0],
+    )
+    assert result == [80]
+
+def test_linear_vector_weight_column_not_match_input_length():
+    input_vector = [2, 3, 4]
+    weight_matrix = [
+                        [10, 20],
+                        [30, 40],
+                        [50, 60],
+                    ]
+    bias_vector = [1, 2, 3]
+    with pytest.raises(ValueError, match="Number of columns in the weight matrix must equal the length of the input vector"):
+        linear_vector(
+            input_vector,
+            weight_matrix,
+            bias_vector,
+        )
+
+def test_linear_vector_bias_length_not_match_output_length():
+    input_vector = [2, 3]
+    weight_matrix = [
+                        [10, 20],
+                        [30, 40],
+                        [50, 60],
+                    ]
+    bias_vector = [1, 2, 3, 4]
+    with pytest.raises(ValueError, match="Number of rows in the weight matrix must equal the length of the bias vector"):
+        linear_vector(
+            input_vector,
+            weight_matrix,
+            bias_vector,
+        )
+
+def test_linear_vector_empty_input_vector():
+    input_vector = []
+    weight_matrix = [
+                        [10, 20],
+                        [30, 40],
+                        [50, 60],
+                    ]
+    bias_vector = [1, 2, 3]
+    with pytest.raises(ValueError, match="Input vector must be a non-empty list of floats"):
+        linear_vector(
+            input_vector,
+            weight_matrix,
+            bias_vector,
+        )
+
+def test_linear_vector_empty_weights():
+    input_vector = [2, 3]
+    weight_matrix = []
+    bias_vector = [1, 2, 3]
+    with pytest.raises(ValueError, match="Weight matrix must be a non-empty list of lists"):
+        linear_vector(
+            input_vector,
+            weight_matrix,
+            bias_vector,
+        )
+
+def test_linear_vector_jagged_weights():
+    input_vector = [2, 3]
+    weight_matrix = [
+        [10, 20],
+        [30, 40, 50],  # This row has a different number of columns
+        [50, 60]
+    ]
+    bias_vector = [1, 2, 3]
+    with pytest.raises(ValueError, match="All rows in the weight matrix must have the same number of columns"):
+        linear_vector(
+            input_vector,
+            weight_matrix,
+            bias_vector,
+        )
+
+def test_linear_vector_empty_bias():
+    input_vector = [2, 3]
+    weight_matrix = [
+        [10, 20],
+        [30, 40],
+        [50, 60]
+    ]
+    bias_vector = []
+    with pytest.raises(ValueError, match="Bias vector must be a non-empty list of floats"):
+        linear_vector(
+            input_vector,
+            weight_matrix,
+            bias_vector,
+        )
+
+def test_linear_sequence():
+    result = linear_sequence(
+        [
+            [2, 3],
+            [4, 5]
+        ],
+        [
+            [10, 20],
+            [30, 40],
+            [50, 60]
+        ],
+        [1, 2, 3]
+    )
+    assert result == [
+                        [81, 182, 283],
+                        [141, 322, 503],
+                    ]
+    
+def test_linear_sequence_one_row():
+    result = linear_sequence(
+        [
+            [2, 3]
+        ],
+        [
+            [10, 20],
+
+        ],
+        [0],
+    )
+    assert result == [
+                        [80]
+                    ]
+    
+def test_linear_sequence_vocab_projection():
+    result = linear_sequence(
+        [
+            [1, 2],
+            [3, 4],
+            [5, 6],
+        ],
+        [
+            [1, 0],
+            [0, 1],
+            [1, 1],
+        ],
+        [10, 20, 30],
+    )
+    assert result == [
+                        [11, 22, 33],
+                        [13, 24, 37],
+                        [15, 26, 41],
+                    ]
+
+def test_linear_sequence_empty_sequence():
+    input_sequence = []
+    weight_matrix = [
+        [10, 20],
+        [30, 40],
+        [50, 60]
+    ]
+    bias_vector = []
+    with pytest.raises(ValueError, match="Embedded sequence must be a non-empty list of lists"):
+        linear_sequence(
+            input_sequence,
+            weight_matrix,
+            bias_vector,
+        )
+
+def test_linear_sequence_jagged_sequence():
+    input_sequence = [
+        [2, 3],
+        [4, 5, 6]  # This row has a different number of elements
+    ]
+    weight_matrix = [
+        [10, 20],
+        [30, 40],
+        [50, 60]
+    ]
+    bias_vector = [1, 2, 3]
+    with pytest.raises(ValueError, match="All rows in the embedded sequence must have the same number of columns"):
+        linear_sequence(
+            input_sequence,
+            weight_matrix,
+            bias_vector,
+        )
+
+def test_linear_sequence_weight_input_mismatch():
+    input_sequence = [
+        [2, 3, 4],
+    ]
+    weight_matrix = [
+        [10, 20],
+        [30, 40],
+    ]
+    bias_vector = [1, 2]
+    with pytest.raises(ValueError, match="Number of columns in the weight matrix must equal the number of columns in the embedded sequence"):
+        linear_sequence(
+            input_sequence,
+            weight_matrix,
+            bias_vector,
+        )
+
+def test_linear_sequence_bias_output_mismatch():
+    input_sequence = [
+        [2, 3],
+    ]
+    weight_matrix = [
+        [10, 20],
+        [30, 40],
+    ]
+    bias_vector = [1]
+    with pytest.raises(ValueError, match="Number of rows in the weight matrix must equal the length of the bias vector"):
+        linear_sequence(
+            input_sequence,
+            weight_matrix,
+            bias_vector,
+        )
+
+def test_linear_sequence_empty_weight_matrix():
+    input_sequence = [
+        [2, 3],
+    ]
+    weight_matrix = []
+    bias_vector = [1]
+    with pytest.raises(ValueError, match="Weight matrix must be a non-empty list of lists"):
+        linear_sequence(
+            input_sequence,
+            weight_matrix,
+            bias_vector,
+        )
+
+def test_linear_sequence_empty_bias():
+    input_sequence = [
+        [2, 3],
+    ]
+    weight_matrix = [
+        [10, 20],
+        [30, 40],
+    ]
+    bias_vector = []
+    with pytest.raises(ValueError, match="Bias vector must be a non-empty list"):
+        linear_sequence(
+            input_sequence,
+            weight_matrix,
+            bias_vector,
+        )   
 
 
 
